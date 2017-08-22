@@ -33,7 +33,10 @@ Currently only the Following TLDs are explicitly handled
 
 If selinux is set to enforcing nagios/nrpe cannot run this script unless you extend the policy like this:
 
-``` setenforce 0 ```
+``` 
+ setenforce 0 
+ restorecon -Rv /usr/lib64/nagios/plugins/
+```
 
 Now execute the check through nagios/nrpe until it runs successfully, then run:
 ```
