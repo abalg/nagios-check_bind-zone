@@ -32,10 +32,12 @@ Currently only the Following TLDs are explicitly handled
 ### SELinux:
 
 If selinux is set to enforcing nagios/nrpe cannot run this script unless you extend the policy like this:
+
 ``` setenforce 0 ```
+
 Now execute the check through nagios/nrpe until it runs successfully, then run:
 ```
-tail -n 10000 -f /var/log/audit/audit.log | grep check_bind-zones | | audit2allow -M check_bind-zones 
+tail -n 10000 -f /var/log/audit/audit.log | grep check_bind-zones  | audit2allow -M check_bind-zones 
 semodule -i check_bind-zones.pp 
 setenforce 1 
 ```
