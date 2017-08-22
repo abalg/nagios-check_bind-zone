@@ -46,4 +46,20 @@ setenforce 1
 ```
 
 
- 
+ ## Usage
+
+```
+Usage: check_bind-zones.sh [ -h ] [ -s whois_server ] [ -n external_dnsserver_ip ] [ -w warndays -c critical_days
+          {[ -d domain_name ]} || { -f bind-config [ -x exclude_domain ]  }
+
+  -c days          : Number of days until expiry to return as critical alarm (default 7)
+  -d domain        : Domain to analyze (interactive mode) (repeat for multiple domains)
+  -f domain file   : Named.conf where zones are read from (includes not yet processed)
+  -h               : Print this screen
+  -n               : Define an IP or hostname of an external nameserver for an 'Outside'-View
+  -s whois server  : Custom whois sever to query for information
+  -v                             : Be more verbose (repeat for even more verbosity)
+  -w days          : Number of days until expiry to return as warning (default 30)
+  -x domain name   : Exclude domainname from checks (together with -f) (repeat for multiple domains)
+
+```
