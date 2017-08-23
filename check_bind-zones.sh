@@ -254,6 +254,7 @@ whois () {
 check_zone () {
     
     local REGISTRAR=""
+    local DOMAINDATE
     local WHOISDNS
     local DNSNS
     local WHOIS_SERVER="$FIXEDWHOIS_SERVER"
@@ -298,21 +299,29 @@ check_zone () {
 	elif [ "${TLDTYPE}" == "ch" -o "${TLDTYPE}" == "li" ]; then # for .ch/.li domain
         REGISTRAR="$(whois $DOMAIN | ${AWK}  '/Registrar:/{while(getline && $0 != ""){ print $0}}')"
     
+    # .cn
+   	elif [ "${TLDTYPE}" == "cn" ]; then # for .uk domain
+    	REGISTRAR=`whois $DOMAIN | ${AWK} '/Sponsoring Registrar:/ && $3 != "" { print $3 }'`
+
     # .de
 	elif [ "${TLDTYPE}" == "de" ]; then # for .de domain
         if [ "$(whois $DOMAIN | ${AWK}  '/Status:/ { print $1 }')" != "free" ]; then
         REGISTRAR="DeNIC"
     	fi
 
-    # .cn
-   	elif [ "${TLDTYPE}" == "cn" ]; then # for .uk domain
-    	REGISTRAR=`whois $DOMAIN | ${AWK} '/Sponsoring Registrar:/ && $3 != "" { print $3 }'`
+    # .es
+	elif [ "${TLDTYPE}" == "es" -o "${TLDTYPE}" == "li" ]; then # for .es
+        REGISTRAR="Dominios .es"
+
+    # .it
+   	elif [ "${TLDTYPE}" == "it" ]; then # for .it
+        REGISTRAR="$(whois $DOMAIN | ${AWK}  '/Registrar/{while(getline && $0 != ""){ print $0}}'| ${AWK} '/Organization:/ { print substr($0,20)}')"
 
     # .sk
-    elif [ "${TLDTYPE}" == "sk" ]; then
+   	elif [ "${TLDTYPE}" == "sk" ]; then
         REGISTRAR=`whois $DOMAIN | ${AWK} '/Tech-name/ && $2 != "" { print $2 }'`
     
-	# .uk
+    # .uk
    	elif [ "${TLDTYPE}" == "uk" ]; then # for .uk domain
     	REGISTRAR=`whois $DOMAIN | ${AWK} -F: '/Registrar:/ && $0 != ""  { getline; REGISTRAR=substr($0,2) } END { print REGISTRAR }'`
 
@@ -329,7 +338,7 @@ check_zone () {
         else
             prints ${DOMAIN} "UNKNOWN" "Status Unknown"
             SKIPEXP=1
-	    SKIPWHOIS=1
+	    	SKIPWHOIS=1
         fi
     fi
 
@@ -341,58 +350,74 @@ check_zone () {
 
     if [ "${TLDTYPE}" == "at" ]; then 
  	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/nserver:/ { print $2}') )
+
+	elif [ "${TLDTYPE}" == "biz" ]; then 
+        DOMAINDATE=`whois $DOMAIN | awk '/Domain Expiration Date:/ { print $6"-"$5"-"$9 }'`
+        WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3}'))
  
     elif [ "${TLDTYPE}" == "ch"  -o "${TLDTYPE}" == "li" ]; then 
  	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name servers:/{while(getline && $0 != ""){ print $1}}') )
  			
+    elif [ "${TLDTYPE}" == "cn" ]; then 
+        tdomdate=`whois $DOMAIN | awk '/Expiration Time:/ { print $3 }'`
+        tyear=`echo ${tdomdate} | cut -d'-' -f1`
+        tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
+        tday=`echo ${tdomdate} | cut -d'-' -f3`
+        DOMAINDATE=`echo $tday-$tmon-$tyear`
+   	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3 }'))         
+    
     elif [ "${TLDTYPE}" == "de" ]; then 
  	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Nserver:/ { print $2}') )
 
-    elif [ "${TLDTYPE}" == "me" ]; then 
-            tdomdate=`whois $DOMAIN | awk '/Registry Expiry Date:/ { print substr($4,1,10) } '`
-            tyear=`echo ${tdomdate} | cut -d'-' -f1`
-            tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
-            tday=`echo ${tdomdate} | cut -d'-' -f3`
-            DOMAINDATE=`echo $tday-$tmonth-$tyear`
-            WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3}'))
+    elif [ "${TLDTYPE}" == "es" ]; then 
+ 	    unset WHOISDNS
+		DOMAINDATE="---"
+		SKIPEXP=1
+		SKIPWHOIS=1
+		# In orer to access WHOIS for .es you need to register an authorized IP with the registration authority "Dominios .es" 
+		# see: https://sede.red.gob.es/procedimientos/solicitud-de-acceso-servicio-de-whois-por-el-puerto-43
 
-	elif [ "${TLDTYPE}" == "biz" ]; then 
-            DOMAINDATE=`whois $DOMAIN | awk '/Domain Expiration Date:/ { print $6"-"$5"-"$9 }'`
-            WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3}'))
+    elif [ "${TLDTYPE}" == "it" ]; then 
+        tdomdate=`whois $DOMAIN | awk '/Expire Date:/ { print $3 }'`
+        tyear=`echo ${tdomdate} | cut -d'-' -f1`
+        tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
+        tday=`echo ${tdomdate} | cut -d'-' -f3`
+        DOMAINDATE=`echo $tday-$tmon-$tyear`
+ 	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Nameservers/{while(getline && $0 != ""){ print $1}}') )
+
+    elif [ "${TLDTYPE}" == "me" ]; then 
+        tdomdate=`whois $DOMAIN | awk '/Registry Expiry Date:/ { print substr($4,1,10) } '`
+        tyear=`echo ${tdomdate} | cut -d'-' -f1`
+        tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
+        tday=`echo ${tdomdate} | cut -d'-' -f3`
+        DOMAINDATE=`echo $tday-$tmonth-$tyear`
+        WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3}'))
 	
 	elif [ "${TLDTYPE}" == "uk" ]; then 
-            WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name servers:/ {while($0 !~ "^[[:space:]]*$") { getline; print $1}}') )
+        WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name servers:/ {while($0 !~ "^[[:space:]]*$") { getline; print $1}}') )
 
-    elif [ "${TLDTYPE}" == "cn" ]; then 
-            tdomdate=`whois $DOMAIN | awk '/Expiration Time:/ { print $3 }'`
-            tyear=`echo ${tdomdate} | cut -d'-' -f1`
-            tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
-            tday=`echo ${tdomdate} | cut -d'-' -f3`
-            DOMAINDATE=`echo $tday-$tmon-$tyear`
-   	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3 }'))         
-    
     elif [ "${TLDTYPE}" == "ro" ]; then 
- 	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Nameserver:/ { print $2}') )
-
-    elif [ "${TLDTYPE}" == "sk" ]; then 
-            tdomdate=`whois $DOMAIN | awk '/Valid-date/ { print $NF }'`
-            tyear=`echo ${tdomdate} | cut -d'-' -f1`
-            tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
-            tday=`echo ${tdomdate} | cut -d'-' -f3`
-            DOMAINDATE=`echo $tday-$tmon-$tyear`
-            WHOISDNS=( $( whois $DOMAIN | ${AWK} '/dns_name/ { print $2 }') )
+        WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Nameserver:/ { print $2}') )
 
     elif [ "${TLDTYPE}" == "sg" ]; then # for .sg
-       	    DOMAINDATE=`whois $DOMAIN | ${AWK} '/Expiration/ { print $(NF-1) }'`
-            WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Servers:/ {while($0 !~ "^[[:space:]]*$") { getline; print $1}}' ) )        	
+       	DOMAINDATE=`whois $DOMAIN | ${AWK} '/Expiration/ { print $(NF-1) }'`
+        WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Servers:/ {while($0 !~ "^[[:space:]]*$") { getline; print $1}}' ) )        	
+
+    elif [ "${TLDTYPE}" == "sk" ]; then 
+        tdomdate=`whois $DOMAIN | awk '/Valid-date/ { print $NF }'`
+        tyear=`echo ${tdomdate} | cut -d'-' -f1`
+        tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
+        tday=`echo ${tdomdate} | cut -d'-' -f3`
+        DOMAINDATE=`echo $tday-$tmon-$tyear`
+        WHOISDNS=( $( whois $DOMAIN | ${AWK} '/dns_name/ { print $2 }') )
 
     else # .com, .net, .org, .cbn, .edu  and may work with others as well
-            tdomdate=`whois $DOMAIN | ${AWK} '/Registry Expiry Date:/ { print substr($4,1,10) } '`
-            tyear=`echo ${tdomdate} | cut -d'-' -f1`
-            tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
-            tday=`echo ${tdomdate} | cut -d'-' -f3`
-            DOMAINDATE=`echo $tday-$tmon-$tyear`
-	    	WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3 }'))
+        tdomdate=`whois $DOMAIN | ${AWK} '/Registry Expiry Date:/ { print substr($4,1,10) } '`
+        tyear=`echo ${tdomdate} | cut -d'-' -f1`
+        tmon=$(month_to_name `echo ${tdomdate} | cut -d'-' -f2`)
+        tday=`echo ${tdomdate} | cut -d'-' -f3`
+        DOMAINDATE=`echo $tday-$tmon-$tyear`
+	    WHOISDNS=( $( whois $DOMAIN | ${AWK} '/Name Server:/ { print $3 }'))
     fi
 
 	$VERBOSE && echo -e "WhoisDNS: $WHOISDNS"
@@ -402,7 +427,10 @@ check_zone () {
     # CHECK 1
     # Check Expiry of registration (if not SKIPPED and valid DOMAINDATE could be extracted)
     ##################################################################################
-    if [ $SKIPEXP == 0 ] && [ date -d "${DOMAINDATE}" >/dev/null 2>&1 ]; then
+    eval "date -d "${DOMAINDATE}" >/dev/null 2>&1"
+	RC=$?
+    
+	if [ $SKIPEXP == 0 ] && [ $RC == 0 ]; then
 	    # Whois data $DOMAINDATE should be in the following format: "13-feb-2006"
 	    
 	    OLDIFS=$IFS
@@ -530,7 +558,7 @@ check_zone () {
 
 	# Finally return "Ok" if all checks passed so far
 	##################################################################################
-    if ( [[ "$NOTOK" == "0" ]] && [[ "$SKIPEXP" == "0" ]] && [[ "$SKIPADNS" == "0" ]]) ; then
+    if [ "$NOTOK" == "0" ] && [ "$SKIPEXP" == "0" ] && [ "$SKIPADNS" == "0" ] ; then
     	prints ${DOMAIN} "OK" "passed all checks"
     elif [[ "$NOTOK" == "0" ]]; then
     	prints ${DOMAIN} "OK" "skipped some checks"
